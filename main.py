@@ -5,114 +5,92 @@ import requests
 import telebot
 from telebot import types
 
-Укажите ваш API-токен от @BotFather здесь или задайте через переменную окружения
-
-BOT_TOKEN = os.getenv("BOT_TOKEN", "9027594374:AAEOb20_NrIg2QUG-JhwDxEjRWlys1w5nXg")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "ВАШ_ТОКЕН_БОТА")
 bot = telebot.TeleBot(BOT_TOKEN)
 
-Временная база данных пользователей (In-Memory)
-
-users_db = {}  # {user_id: {"score": 0, "current_task": int}}
-clocks_db = {}  # {user_id: {"white_time": int, "black_time": int, "inc": int, "last_click": float, "msg_id": int}}
-
----------------------------------------------------------------------
-
-
-БАЗА ДАННЫХ: РОВНО 30 ХИТРЫХ ЗАДАЧ (Без спойлеров в тексте, хитрые варианты)
-
-
----------------------------------------------------------------------
+users_db = {}
+clocks_db = {}
 
 TACTOR_TASKS = [
-{"id": 1, "theme": "Вилка", "desc": "Ход белых. 🔹 Обнаружьте тактическую слабость на королевском фланге соперника и получите материальный перевес.", "fen": "r1bqk2r/ppp2ppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 6", "correct": "Ng5", "variants": ["Ng5", "d4", "Bxf7+", "O-O"]},
-{"id": 2, "theme": "Связка", "desc": "Ход черных. 🔹 Заметьте незащищенный мотив в центре белых и свяжите ключевую фигуру противника.", "fen": "rnbqk2r/pppp1ppp/5n2/4p3/1bB1P3/2N5/PPPP1PPP/R1BQK1NR b KQkq - 4 4", "correct": "Nxe4", "variants": ["Nxe4", "O-O", "d6", "Bxc3"]},
-{"id": 3, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Изящный финал близок. Найдите форсированную матовую конструкцию против зажатого короля.", "fen": "r1b1kbnr/pppp1ppp/2n5/4p3/7q/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 4", "correct": "Nf3", "variants": ["Nf3", "Be2", "h3", "Qe2"]},
-{"id": 4, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Защита черного короля кажется надежной, но одна из фигур перегружена. Отвлеките её!", "fen": "rn1qkbnr/ppp1pppp/8/3p4/6b1/5NP1/PPPPPP1P/RNBQKB1R w KQkq - 1 3", "correct": "Ne5", "variants": ["Ne5", "Bg2", "c4", "h3"]},
-{"id": 5, "theme": "Разрушение рокировки", "desc": "Ход белых. 🔹 Королевское убежище черных держится на волоске. Пожертвуйте фигуру ради вскрытия линий.", "fen": "rnbqk2r/ppp2ppp/3b1n2/3pp3/8/3P1NP1/PPPNPPBP/R1BQK2R w KQkq - 2 5", "correct": "e4", "variants": ["e4", "c4", "O-O", "d4"]},
-{"id": 6, "theme": "Пешечный прорыв", "desc": "Ход белых. 🔹 Пешечная структура определяет исход эндшпиля. Создайте проходную пешку точным ударом.", "fen": "8/8/8/4kppp/8/8/5PPP/6K1 w - - 0 1", "correct": "f4+", "variants": ["f4+", "h4", "g4", "Kf2"]},
-{"id": 7, "theme": "Вилка", "desc": "Ход черных. 🔹 Белые неосторожно вывели тяжелую фигуру. Накажите их двойным ударом коня.", "fen": "rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 3 3", "correct": "Nxe4", "variants": ["Nxe4", "Nc6", "Bc5", "d6"]},
-{"id": 8, "theme": "Связка", "desc": "Ход белых. 🔹 Противник связал вашего коня, но оставил дыру на диагонали. Опровергните этот выпад.", "fen": "rnbqk1br/pppp1ppp/5n2/4p3/1bB1P3/2N5/PPPP1PPP/R1BQK1NR w KQkq - 4 4", "correct": "Nge2", "variants": ["Nge2", "Bxf7+", "O-O", "a3"]},
-{"id": 9, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Черный ферзь контролирует важное поле. Найдите способ увести его с огневой рубежа.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 4", "correct": "Qxf7#", "variants": ["Qxf7#", "Bxf7+", "Ne2", "Nh3"]},
-{"id": 10, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Проведите классическую комбинацию с удушением вражеского монарха на краю доски.", "fen": "rnbqkb1r/pppp1ppp/8/4p3/2B1n3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4", "correct": "Bxf7+", "variants": ["Bxf7+", "Nxe5", "O-O", "Qe2"]},
-{"id": 11, "theme": "Вилка", "desc": "Ход белых. 🔹 Вскройте центр и создайте неотразимую вилку пешкой или фигурой на две активные цели.", "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3", "correct": "exd5", "variants": ["exd5", "e5", "Nc3", "d4"]},
-{"id": 12, "theme": "Связка", "desc": "Ход черных. 🔹 Воспользуйтесь тем, что король белых задержался в центре, и выиграйте темп через связку.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3", "correct": "Be7", "variants": ["Be7", "Nf6", "Bg4", "Nc6"]},
-{"id": 13, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Пожертвуйте легкую фигуру, чтобы разрушить геометрию обороны черных.", "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "correct": "d4", "variants": ["d4", "Bc4", "Bb5", "Nc3"]},
-{"id": 14, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Докажите, что плохая координация фигур соперника карается быстрым разгромом.", "fen": "rnbqkbnr/1ppp1ppp/p7/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 3", "correct": "Qh5", "variants": ["Qh5", "Bxf7+", "Nf3", "d4"]},
-{"id": 15, "theme": "Разрушение рокировки", "desc": "Ход белых. 🔹 Конь противника прыгнул слишком далеко вперед. Срежьте оборонительные подпорки.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/2B1P3/4N3/PPPP1PPP/RNBQK2R w KQkq - 0 4", "correct": "O-O", "variants": ["O-O", "Bxf7+", "Qf3", "d4"]},
-{"id": 16, "theme": "Пешечный прорыв", "desc": "Ход черных. 🔹 Атакуйте пешечную цепь белых с фланга, открывая дорогу своей проходной пешке.", "fen": "8/8/8/p7/P7/1k6/8/2K5 b - - 0 1", "correct": "Kxa4", "variants": ["Kxa4", "Kb4", "Kc3", "Ka3"]},
-{"id": 17, "theme": "Вилка", "desc": "Ход белых. 🔹 Найдите скрытую коневую вилку после короткого размена в центре.", "fen": "r1bqkbnr/ppp2ppp/2n5/3pp3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4", "correct": "Nxe5", "variants": ["Nxe5", "exd5", "dxe5", "Bb5"]},
-{"id": 18, "theme": "Связка", "desc": "Ход черных. 🔹 Зафиксируйте вражеского коня мертвой связкой и подготовьте на него накат.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3", "correct": "exd4", "variants": ["exd4", "Nd7", "Nf6", "f6"]},
-{"id": 19, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Фигуры соперника скучковались. Отвлеките защитника ключевого полей.", "fen": "r1bqk1nr/pppp1ppp/2n5/2b1p3/4P3/5N2/PPPPBPPP/RNBQK2R w KQkq - 4 4", "correct": "O-O", "variants": ["O-O", "Nxe5", "d3", "c3"]},
-{"id": 20, "theme": "Спёртый мат", "desc": "Ход черных. 🔹 Белые допустили зловещий зевок по большой диагонали. Окружите короля.", "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5Q2/PPPP1PPP/RNB1KBNR b KQkq - 1 2", "correct": "Nf6", "variants": ["Nf6", "Nc6", "Qf6", "d6"]},
-{"id": 21, "theme": "Разрушение рокировки", "desc": "Ход белых. 🔹 Подготовьте почву для разрушения длинной рокировки соперника, вскрыв вертикаль.", "fen": "r3kbnr/ppp2ppp/2np1n2/4p3/4P1b1/2NP1NP1/PPP1BP1P/R1BQK2R w KQkq - 1 6", "correct": "Be3", "variants": ["Be3", "h3", "Nxe5", "O-O"]},
-{"id": 22, "theme": "Пешечный прорыв", "desc": "Ход белых. 🔹 Превратите минимальное позиционное преимущество in ферзя точным маршем.", "fen": "8/8/8/6p1/5pP1/5P2/4k1K1/8 w - - 0 1", "correct": "Kh3", "variants": ["Kh3", "Kh2", "Kf1", "Kg1"]},
-{"id": 23, "theme": "Вилка", "desc": "Ход черных. 🔹 Контратакуйте белых в дебюте четырех коней, поставив вилку на вилку.", "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R b KQkq - 5 4", "correct": "Nxe4", "variants": ["Nxe4", "Bc5", "Bb4", "d6"]},
-{"id": 24, "theme": "Связка", "desc": "Ход белых. 🔹 Свяжите тяжелую фигуру черных, воспользовавшись их плохим развитием.", "fen": "r1bqk2r/ppp2ppp/2np1n2/1B2p3/4P3/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 6", "correct": "d4", "variants": ["d4", "Bxc6+", "O-O", "h3"]},
-{"id": 25, "theme": "Отвлечение", "desc": "Ход черных. 🔹 Ферзь белых перегружен защитой коня и матовых полей. Сделайте отвлекающий ход.", "fen": "rnbqkbnr/ppp2ppp/8/3pp3/4P3/5Q2/PPPP1PPP/RNB1KBNR b KQkq - 1 3", "correct": "Nf6", "variants": ["Nf6", "dxe4", "c6", "Be6"]},
-{"id": 26, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Реализуйте фатальную ошибку черных в защите Кара-Канн изящным маневром.", "fen": "rnbqkbnr/pp2pppp/2p5/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3", "correct": "exd5", "variants": ["exd5", "e5", "Nc3", "d4"]},
-{"id": 27, "theme": "Разрушение рокировки", "desc": "Ход черных. 🔹 Король белых раскрылся. Найдите способ навсегда лишить его права на рокировку.", "fen": "rnbqk1nr/ppp2ppp/3p4/4p3/2B1P3/2P2N2/PPPP1PPP/RNBQK2R b KQkq - 1 4", "correct": "Nf6", "variants": ["Nf6", "Bg4", "Be7", "h6"]},
-{"id": 28, "theme": "Пешечный прорыв", "desc": "Ход белых. 🔹 Отрежьте вражеского короля от вашей проходной пехоты решающим ходом.", "fen": "8/8/pK6/8/k7/8/8/8 w - - 0 1", "correct": "Kxa6", "variants": ["Kxa6", "Kbp5", "Kb7", "Kc5"]},
-{"id": 29, "theme": "Вилка", "desc": "Ход белых. 🔹 Накажите черных за раннюю и агрессивную вылазку ферзя сокрушительной вилкой.", "fen": "rnb1kbnr/ppp1pppp/8/q7/8/2N5/PPPP1PPP/R1BQKBNR w KQkq - 2 4", "correct": "d4", "variants": ["d4", "Nf3", "b4", "e5"]},
-{"id": 30, "theme": "Связка", "desc": "Ход белых. 🔹 Объявите рентген-атаку на вертикаль Е, сковав ключевые ресурсы черных.", "fen": "rnbqkbnr/ppp2ppp/8/3pp3/4P3/8/PPPPNPPP/RNBQKB1R w KQkq - 0 3", "correct": "exd5", "variants": ["exd5", "d3", "Nc3", "d4"]}
+    {"id": 1, "theme": "Вилка", "desc": "Ход белых. 🔹 Обнаружьте тактическую слабость на королевском фланге соперника и получите материальный перевес.", "fen": "r1bqk2r/ppp2ppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 6", "correct": "Ng5", "variants": ["Ng5", "d4", "Bxf7+", "O-O"]},
+    {"id": 2, "theme": "Связка", "desc": "Ход черных. 🔹 Заметьте незащищенный мотив в центре белых и свяжите ключевую фигуру противника.", "fen": "rnbqk2r/pppp1ppp/5n2/4p3/1bB1P3/2N5/PPPP1PPP/R1BQK1NR b KQkq - 4 4", "correct": "Nxe4", "variants": ["Nxe4", "O-O", "d6", "Bxc3"]},
+    {"id": 3, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Изящный финал близок. Найдите форсированную матовую конструкцию против зажатого короля.", "fen": "r1b1kbnr/pppp1ppp/2n5/4p3/7q/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 4", "correct": "Nf3", "variants": ["Nf3", "Be2", "h3", "Qe2"]},
+    {"id": 4, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Защита черного короля кажется надежной, но одна из фигур перегружена. Отвлеките её!", "fen": "rn1qkbnr/ppp1pppp/8/3p4/6b1/5NP1/PPPPPP1P/RNBQKB1R w KQkq - 1 3", "correct": "Ne5", "variants": ["Ne5", "Bg2", "c4", "h3"]},
+    {"id": 5, "theme": "Разрушение рокировки", "desc": "Ход белых. 🔹 Королевское убежище черных держится на волоске. Пожертвуйте фигуру ради вскрытия линий.", "fen": "rnbqk2r/ppp2ppp/3b1n2/3pp3/8/3P1NP1/PPPNPPBP/R1BQK2R w KQkq - 2 5", "correct": "e4", "variants": ["e4", "c4", "O-O", "d4"]},
+    {"id": 6, "theme": "Пешечный прорыв", "desc": "Ход белых. 🔹 Пешечная структура определяет исход эндшпиля. Создайте проходную пешку точным ударом.", "fen": "8/8/8/4kppp/8/8/5PPP/6K1 w - - 0 1", "correct": "f4+", "variants": ["f4+", "h4", "g4", "Kf2"]},
+    {"id": 7, "theme": "Вилка", "desc": "Ход черных. 🔹 Белые неосторожно вывели тяжелую фигуру. Накажите их двойным ударом коня.", "fen": "rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 3 3", "correct": "Nxe4", "variants": ["Nxe4", "Nc6", "Bc5", "d6"]},
+    {"id": 8, "theme": "Связка", "desc": "Ход белых. 🔹 Противник связал вашего коня, но оставил дыру на диагонали. Опровергните этот выпад.", "fen": "rnbqk1br/pppp1ppp/5n2/4p3/1bB1P3/2N5/PPPP1PPP/R1BQK1NR w KQkq - 4 4", "correct": "Nge2", "variants": ["Nge2", "Bxf7+", "O-O", "a3"]},
+    {"id": 9, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Черный ферзь контролирует важное поле. Найдите способ увести его с огневой рубежа.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 4", "correct": "Qxf7#", "variants": ["Qxf7#", "Bxf7+", "Ne2", "Nh3"]},
+    {"id": 10, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Проведите классическую комбинацию с удушением вражеского монарха на краю доски.", "fen": "rnbqkb1r/pppp1ppp/8/4p3/2B1n3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4", "correct": "Bxf7+", "variants": ["Bxf7+", "Nxe5", "O-O", "Qe2"]},
+    {"id": 11, "theme": "Вилка", "desc": "Ход белых. 🔹 Вскройте центр и создайте неотразимую вилку пешкой или фигурой на две активные цели.", "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3", "correct": "exd5", "variants": ["exd5", "e5", "Nc3", "d4"]},
+    {"id": 12, "theme": "Связка", "desc": "Ход черных. 🔹 Воспользуйтесь тем, что король белых задержался в центре, и выиграйте темп через связку.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3", "correct": "Be7", "variants": ["Be7", "Nf6", "Bg4", "Nc6"]},
+    {"id": 13, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Пожертвуйте легкую фигуру, чтобы разрушить геометрию обороны черных.", "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "correct": "d4", "variants": ["d4", "Bc4", "Bb5", "Nc3"]},
+    {"id": 14, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Докажите, что плохая координация фигур соперника карается быстрым разгромом.", "fen": "rnbqkbnr/1ppp1ppp/p7/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 3", "correct": "Qh5", "variants": ["Qh5", "Bxf7+", "Nf3", "d4"]},
+    {"id": 15, "theme": "Разрушение рокировки", "desc": "Ход белых. 🔹 Конь противника прыгнул слишком далеко вперед. Срежьте оборонительные подпорки.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/2B1P3/4N3/PPPP1PPP/RNBQK2R w KQkq - 0 4", "correct": "O-O", "variants": ["O-O", "Bxf7+", "Qf3", "d4"]},
+    {"id": 16, "theme": "Пешечный прорыв", "desc": "Ход черных. 🔹 Атакуйте пешечную цепь белых с фланга, открывая дорогу своей проходной пешке.", "fen": "8/8/8/p7/P7/1k6/8/2K5 b - - 0 1", "correct": "Kxa4", "variants": ["Kxa4", "Kb4", "Kc3", "Ka3"]},
+    {"id": 17, "theme": "Вилка", "desc": "Ход белых. 🔹 Найдите скрытую коневую вилку после короткого размена в центре.", "fen": "r1bqkbnr/ppp2ppp/2n5/3pp3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4", "correct": "Nxe5", "variants": ["Nxe5", "exd5", "dxe5", "Bb5"]},
+    {"id": 18, "theme": "Связка", "desc": "Ход черных. 🔹 Зафиксируйте вражеского коня мертвой связкой и подготовьте на него накат.", "fen": "rnbqkbnr/ppp2ppp/3p4/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3", "correct": "exd4", "variants": ["exd4", "Nd7", "Nf6", "f6"]},
+    {"id": 19, "theme": "Отвлечение", "desc": "Ход белых. 🔹 Фигуры соперника скучковались. Отвлеките защитника ключевого полей.", "fen": "r1bqk1nr/pppp1ppp/2n5/2b1p3/4P3/5N2/PPPPBPPP/RNBQK2R w KQkq - 4 4", "correct": "O-O", "variants": ["O-O", "Nxe5", "d3", "c3"]},
+    {"id": 20, "theme": "Спёртый мат", "desc": "Ход черных. 🔹 Белые допустили зловещий зевок по большой диагонали. Окружите короля.", "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5Q2/PPPP1PPP/RNB1KBNR b KQkq - 1 2", "correct": "Nf6", "variants": ["Nf6", "Nc6", "Qf6", "d6"]},
+    {"id": 21, "theme": "Разрушение рокировки", "desc": "Ход белых. 🔹 Подготовьте почву для разрушения длинной рокировки соперника, вскрыв вертикаль.", "fen": "r3kbnr/ppp2ppp/2np1n2/4p3/4P1b1/2NP1NP1/PPP1BP1P/R1BQK2R w KQkq - 1 6", "correct": "Be3", "variants": ["Be3", "h3", "Nxe5", "O-O"]},
+    {"id": 22, "theme": "Пешечный прорыв", "desc": "Ход белых. 🔹 Превратите минимальное позиционное преимущество в ферзя точным маршем.", "fen": "8/8/8/6p1/5pP1/5P2/4k1K1/8 w - - 0 1", "correct": "Kh3", "variants": ["Kh3", "Kh2", "Kf1", "Kg1"]},
+    {"id": 23, "theme": "Вилка", "desc": "Ход черных. 🔹 Контратакуйте белых в дебюте четырех коней, поставив вилку на вилку.", "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R b KQkq - 5 4", "correct": "Nxe4", "variants": ["Nxe4", "Bc5", "Bb4", "d6"]},
+    {"id": 24, "theme": "Связка", "desc": "Ход белых. 🔹 Свяжите тяжелую фигуру черных, воспользовавшись их плохим развитием.", "fen": "r1bqk2r/ppp2ppp/2np1n2/1B2p3/4P3/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 6", "correct": "d4", "variants": ["d4", "Bxc6+", "O-O", "h3"]},
+    {"id": 25, "theme": "Отвлечение", "desc": "Ход черных. 🔹 Ферзь белых перегружен защитой коня и матовых полей. Сделайте отвлекающий ход.", "fen": "rnbqkbnr/ppp2ppp/8/3pp3/4P3/5Q2/PPPP1PPP/RNB1KBNR b KQkq - 1 3", "correct": "Nf6", "variants": ["Nf6", "dxe4", "c6", "Be6"]},
+    {"id": 26, "theme": "Спёртый мат", "desc": "Ход белых. 🔹 Реализуйте фатальную ошибку черных в защите Кара-Канн изящным маневром.", "fen": "rnbqkbnr/pp2pppp/2p5/3p4/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3", "correct": "exd5", "variants": ["exd5", "e5", "Nc3", "d4"]},
+    {"id": 27, "theme": "Разрушение рокировки", "desc": "Ход черных. 🔹 Король белых раскрылся. Найдите способ навсегда лишить его права на рокировку.", "fen": "rnbqk1nr/ppp2ppp/3p4/4p3/2B1P3/2P2N2/PPPP1PPP/RNBQK2R b KQkq - 1 4", "correct": "Nf6", "variants": ["Nf6", "Bg4", "Be7", "h6"]},
+    {"id": 28, "theme": "Пешечный прорыв", "desc": "Ход белых. 🔹 Отрежьте вражеского короля от вашей проходной пехоты решающим ходом.", "fen": "8/8/pK6/8/k7/8/8/8 w - - 0 1", "correct": "Kxa6", "variants": ["Kxa6", "Kbp5", "Kb7", "Kc5"]},
+    {"id": 29, "theme": "Вилка", "desc": "Ход белых. 🔹 Накажите черных за раннюю и агрессивную вылазку ферзя сокрушительной вилкой.", "fen": "rnb1kbnr/ppp1pppp/8/q7/8/2N5/PPPP1PPP/R1BQKBNR w KQkq - 2 4", "correct": "d4", "variants": ["d4", "Nf3", "b4", "e5"]},
+    {"id": 30, "theme": "Связка", "desc": "Ход белых. 🔹 Объявите рентген-атаку на вертикаль Е, сковав ключевые ресурсы черных.", "fen": "rnbqkbnr/ppp2ppp/8/3pp3/4P3/8/PPPPNPPP/RNBQKB1R w KQkq - 0 3", "correct": "exd5", "variants": ["exd5", "d3", "Nc3", "d4"]}
 ]
 
----------------------------------------------------------------------
-
-
-ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-
-
----------------------------------------------------------------------
-
 def init_user(user_id):
-if user_id not in users_db:
-users_db[user_id] = {"score": 0, "current_task": -1}
+    if user_id not in users_db:
+        users_db[user_id] = {"score": 0, "current_task": -1}
+
 def get_rank(score):
-if score <= 200:
-return "Новичок 👶 (Базовый уровень)"
-elif score <= 400:
-return "Юный Разрядник 🛡️ (Умеет видеть простые угрозы)"
-elif score <= 600:
-return "Кандидат в Мастера (КМС) ⚔️ (Сильный тактик)"
-else:
-return "Гроссмейстер Клуба 👑 (Элита, открывший все секреты)"
+    if score <= 200:
+        return "Новичок 👶 (Базовый уровень)"
+    elif score <= 400:
+        return "Юный Разрядник 🛡️ (Умеет видеть простые угрозы)"
+    elif score <= 600:
+        return "Кандидат в Мастера (КМС) ⚔️ (Сильный тактик)"
+    else:
+        return "Гроссмейстер Клуба 👑 (Элита, открывший все секреты)"
+
 def get_board_image_url(fen):
-return f"lichess1.org{requests.utils.quote(fen)}&theme=brown&piece=cburnett"
+    return f"https://lichess1.org{requests.utils.quote(fen)}&theme=brown&piece=cburnett"
+
 def send_main_menu(chat_id):
-markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-markup.add(
-types.KeyboardButton("🏫 Академия шахмат"),
-types.KeyboardButton("🧩 Тренажер тактики"),
-types.KeyboardButton("🏆 Мой профиль")
-)
-lines = "═" * 20
-bot.send_message(
-chat_id,
-f"{lines}\n👑 ДОБРО ПОЖАЛОВАТЬ В ШАХМАТНЫЙ КЛУБ! 👑\n{lines}\n"
-f"🔹 Развивайте тактическое зрение\n"
-f"🔹 Решайте уникальные задачи-ловушки\n"
-f"🔹 Повышайте свой рейтинг до Гроссмейстера!",
-reply_markup=markup
-)
-
----------------------------------------------------------------------
-
-
-ОБРАБОТЧИКИ МЕНЮ
-
-
----------------------------------------------------------------------
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    markup.add(
+        types.KeyboardButton("🏫 Академия шахмат"),
+        types.KeyboardButton("🧩 Тренажер тактики"),
+        types.KeyboardButton("🏆 Мой профиль")
+    )
+    lines = "═" * 20
+    bot.send_message(
+        chat_id, 
+        f"{lines}\n👑 ДОБРО ПОЖАЛОВАТЬ В ШАХМАТНЫЙ КЛУБ! 👑\n{lines}\n"
+        f"🔹 Развивайте тактическое зрение\n"
+        f"🔹 Решайте уникальные задачи-ловушки\n"
+        f"🔹 Повышайте свой рейтинг до Гроссмейстера!", 
+        reply_markup=markup
+    )
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-init_user(message.from_user.id)
-send_main_menu(message.chat.id)
+    init_user(message.from_user.id)
+    send_main_menu(message.chat.id)
+
 @bot.message_handler(func=lambda m: m.text == "🏆 Мой профиль")
 def handle_profile(message):
-user_id = message.from_user.id
-init_user(user_id)
-data = users_db[user_id]
-text = (
+    user_id = message.from_user.id
+    init_user(user_id)
+    data = users_db[user_id]
+
+    text = (
+Используйте код с осторожностью.
 f"════════════════════\n"
 f"🏆 ВАШ ШАХМАТНЫЙ ПРОФИЛЬ\n"
 f"════════════════════\n"
@@ -122,15 +100,6 @@ f"👑 Звание: {get_rank(data['score'])}\n"
 f"════════════════════"
 )
 bot.send_message(message.chat.id, text, parse_mode="Markdown")
-
----------------------------------------------------------------------
-
-
-РАЗДЕЛ: ТРЕНАЖЕР ТАКТИКИ (30 задач с random.shuffle)
-
-
----------------------------------------------------------------------
-
 @bot.message_handler(func=lambda m: m.text == "🧩 Тренажер тактики")
 def handle_tactics_menu(message):
 markup = types.InlineKeyboardMarkup()
@@ -190,15 +159,6 @@ text = f"❌ ОШИБКА! (-5 очков рейтинга)\n\nВы попали
 markup = types.InlineKeyboardMarkup()
 markup.add(types.InlineKeyboardButton("▶️ Следующая задача", callback_data="tactic_start"))
 bot.send_message(call.message.chat.id, text, reply_markup=markup, parse_mode="Markdown")
-
----------------------------------------------------------------------
-
-
-РАЗДЕЛ: АКАДЕМИЯ ШАХМАТ
-
-
----------------------------------------------------------------------
-
 @bot.message_handler(func=lambda m: m.text == "🏫 Академия шахмат")
 def handle_academy(message):
 markup = types.InlineKeyboardMarkup(row_width=2)
@@ -262,15 +222,6 @@ img_url = get_board_image_url(fen)
 bot.send_photo(message.chat.id, img_url, caption="🎨 Сгенерированная позиция по вашему FEN-коду.")
 except Exception:
 bot.send_message(message.chat.id, "❌ Не удалось прочитать FEN. Попробуйте еще раз через меню Академии.")
-
----------------------------------------------------------------------
-
-
-ИНТЕРАКТИВНЫЕ ШАХМАТНЫЕ ЧАСЫ ДЛЯ ИГРЫ ВЖИВУЮ
-
-
----------------------------------------------------------------------
-
 def send_clocks_setup(chat_id):
 markup = types.InlineKeyboardMarkup()
 markup.add(
@@ -283,8 +234,8 @@ bot.send_message(chat_id, "⏱️ НАСТРОЙКА ШАХМАТНЫХ ЧАСО
 def handle_clock_init(call):
 user_id = call.from_user.id
 parts = call.data.replace("clk_set_", "").split("_")
-total_time = int(parts[0])
-inc = int(parts[1])
+total_time = int(parts)
+inc = int(parts)
 clocks_db[user_id] = {
 "white_time": total_time,
 "black_time": total_time,
@@ -305,8 +256,8 @@ data["msg_id"] = msg.message_id
 @bot.callback_query_handler(func=lambda c: c.data.startswith("clk_turn_"))
 def handle_clock_tick(call):
 parts = call.data.replace("clk_turn_", "").split("_")
-turn = parts[0]
-u_id = int(parts[1])
+turn = parts
+u_id = int(parts)
 if u_id not in clocks_db:
 return
 data = clocks_db[u_id]
